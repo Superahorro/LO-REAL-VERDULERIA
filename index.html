@@ -1,0 +1,1322 @@
+<!DOCTYPE html>
+<html lang="es" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#84A645" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="LO REAL" />
+  <title>LO REAL · Buscador de Códigos de Caja</title>
+
+  <!-- Fuentes Inter (interfaz legible) y Caveat (lema manuscrito de LO REAL) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            script: ['Caveat', 'cursive'],
+          },
+        },
+      },
+    };
+  </script>
+
+  <!-- SheetJS para leer y exportar Excel (.xlsx, .xls, .csv) -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans min-h-screen flex flex-col selection:bg-lime-200 dark:selection:bg-emerald-800">
+
+  <!-- Input oculto para cargar Excel directo en 1 clic -->
+  <input id="excelFileInput" type="file" accept=".xlsx,.xls,.csv" class="hidden" />
+
+  <!-- Capa visual al arrastrar un archivo Excel sobre la ventana -->
+  <div id="globalDropOverlay" class="fixed inset-0 z-50 hidden items-center justify-center bg-emerald-950/75 backdrop-blur-sm p-6">
+    <div class="w-full max-w-md rounded-3xl border-4 border-dashed border-lime-300 bg-white/95 dark:bg-slate-900/95 p-8 text-center shadow-2xl">
+      <div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-lime-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-lime-300">
+        <svg class="w-9 h-9" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+        </svg>
+      </div>
+      <h2 class="text-xl font-extrabold text-slate-900 dark:text-white">Soltá tu Excel acá</h2>
+      <p class="mt-1.5 text-sm text-slate-600 dark:text-slate-300">
+        Se cargarán al instante <strong>Columna A (Código)</strong> y <strong>Columna B (Descripción)</strong>.
+      </p>
+    </div>
+  </div>
+
+  <!-- Encabezado fijo con fondo decorativo de frutas y verduras + logo LO REAL -->
+  <header class="sticky top-0 z-30 relative overflow-hidden border-b border-lime-200/80 dark:border-slate-800 bg-gradient-to-r from-lime-50 via-white to-emerald-50 dark:from-slate-900 dark:via-slate-900 dark:to-emerald-950 shadow-sm">
+    <!-- Mosaico decorativo de frutas y verduras de fondo -->
+    <div aria-hidden="true" class="pointer-events-none select-none absolute inset-0 overflow-hidden opacity-[0.22] dark:opacity-[0.14]">
+      <div class="flex flex-wrap justify-between gap-x-6 gap-y-2 text-2xl sm:text-3xl leading-none p-1 -rotate-2 scale-105">
+        <span>🍎</span><span>🍌</span><span>🥬</span><span>🍅</span><span>🥕</span><span>🍋</span><span>🥦</span><span>🍇</span><span>🍐</span><span>🫑</span><span>🍉</span><span>🥔</span><span>🍊</span><span>🥑</span><span>🍓</span><span>🧅</span><span>🌽</span><span>🍍</span><span>🍆</span><span>🥒</span>
+        <span>🍊</span><span>🥝</span><span>🧄</span><span>🍑</span><span>🥭</span><span>🥬</span><span>🍌</span><span>🍎</span><span>🍅</span><span>🥕</span><span>🫑</span><span>🍇</span><span>🍋</span><span>🥦</span><span>🍉</span><span>🥔</span><span>🥑</span><span>🍐</span><span>🍓</span><span>🧅</span>
+        <span>🍍</span><span>🥒</span><span>🍆</span><span>🌽</span><span>🍎</span><span>🍋</span><span>🍌</span><span>🥬</span><span>🍅</span><span>🥕</span><span>🥦</span><span>🍇</span><span>🍊</span><span>🥔</span><span>🥑</span><span>🫑</span><span>🍐</span><span>🍉</span><span>🍓</span><span>🥝</span>
+      </div>
+    </div>
+    <!-- Degradado suave para asegurar máxima legibilidad sobre las frutas -->
+    <div aria-hidden="true" class="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/55 via-white/75 to-white/95 dark:from-slate-900/65 dark:via-slate-900/82 dark:to-slate-900/95"></div>
+
+    <div class="relative z-10 max-w-7xl mx-auto px-3 sm:px-6 py-2.5 sm:py-3">
+      <!-- Fila superior: Logo LO REAL y botones de acción -->
+      <div class="flex items-center justify-between gap-2 mb-2.5 sm:mb-3">
+        <!-- Marca LO REAL -->
+        <div class="flex items-center gap-2 sm:gap-3 bg-white/85 dark:bg-slate-900/85 backdrop-blur-sm px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-2xl border border-lime-200/80 dark:border-slate-700/80 shadow-sm min-w-0">
+          <!-- Isotipo SVG de las dos hojas verdes de LO REAL -->
+          <svg class="w-9 h-9 sm:w-12 sm:h-12 shrink-0" viewBox="0 0 110 110" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Logo LO REAL">
+            <!-- Hoja izquierda -->
+            <path d="M51 82C26 78 11 58 9 32C30 33 49 48 53 73L51 82Z" fill="#84A645" />
+            <path d="M21 44C31 53 41 64 49 77" stroke="white" stroke-width="2.6" stroke-linecap="round" opacity="0.92" />
+            <!-- Hoja derecha más grande con muesca -->
+            <path d="M53 84C48 54 62 22 97 8C95 19 93 26 90 32L96 31C92 56 76 78 56 85L53 84Z" fill="#84A645" />
+            <path d="M84 24C71 39 60 58 54 80" stroke="white" stroke-width="2.8" stroke-linecap="round" opacity="0.92" />
+            <!-- Tallo -->
+            <path d="M51 77C53 84 53 91 52 99" stroke="#84A645" stroke-width="6" stroke-linecap="round" />
+          </svg>
+
+          <!-- Logotipo tipográfico -->
+          <div class="leading-none min-w-0">
+            <div class="flex items-baseline gap-1.5 sm:gap-2.5 flex-wrap">
+              <h1 class="text-xl sm:text-3xl font-black tracking-tight text-slate-900 dark:text-white leading-none">
+                LO REAL
+              </h1>
+              <span id="totalCountBadge" class="inline-flex items-center px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold bg-lime-100 dark:bg-emerald-900/60 text-lime-800 dark:text-emerald-300 border border-lime-200 dark:border-emerald-800">
+                0 productos
+              </span>
+            </div>
+            <p class="font-script text-lg sm:text-2xl font-bold text-[#7F9F41] dark:text-[#A0C659] -mt-0.5 sm:-mt-1 leading-none truncate">
+              frescura de verdad
+            </p>
+          </div>
+        </div>
+
+        <!-- Botones de acción (adaptados a celular y PC) -->
+        <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          <!-- Sincronizar desde la nube (GitHub Pages: codigos.xlsx) -->
+          <button
+            id="btnSyncCloud"
+            type="button"
+            class="inline-flex items-center justify-center gap-1.5 p-2.5 sm:px-3 sm:py-2.5 rounded-xl bg-lime-100 hover:bg-lime-200 dark:bg-emerald-900/60 dark:hover:bg-emerald-800/70 text-lime-900 dark:text-emerald-200 text-sm font-semibold transition cursor-pointer"
+            title="Actualizar lista desde la nube"
+            aria-label="Actualizar lista desde la nube"
+          >
+            <svg id="iconSync" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+            </svg>
+            <span class="hidden lg:inline">Actualizar</span>
+          </button>
+
+          <!-- Cargar Excel local directo -->
+          <button
+            id="btnOpenImport"
+            type="button"
+            class="inline-flex items-center justify-center gap-1.5 p-2.5 sm:px-3.5 sm:py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-sm font-semibold shadow-sm transition cursor-pointer"
+            title="Cargar archivo Excel local (Columna A y B)"
+            aria-label="Cargar Excel"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+            </svg>
+            <span class="hidden sm:inline">Cargar Excel</span>
+          </button>
+
+          <!-- Agregar producto manual -->
+          <button
+            id="btnAddProduct"
+            type="button"
+            class="hidden sm:inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-white/90 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 text-sm font-semibold transition cursor-pointer"
+            title="Agregar un producto manualmente"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+            <span class="hidden md:inline">Nuevo</span>
+          </button>
+
+          <!-- Exportar a Excel -->
+          <button
+            id="btnExportExcel"
+            type="button"
+            class="hidden md:inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-white/90 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-sm font-semibold transition cursor-pointer"
+            title="Descargar copia en Excel (.xlsx)"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+            </svg>
+            <span class="hidden lg:inline">Exportar</span>
+          </button>
+
+          <!-- Cambiar vista (Tarjetas / Lista) -->
+          <button
+            id="btnToggleView"
+            type="button"
+            class="p-2.5 rounded-xl bg-white/90 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 transition cursor-pointer"
+            title="Cambiar vista (Tarjetas / Lista)"
+            aria-label="Cambiar vista"
+          >
+            <svg id="iconViewGrid" class="w-4 h-4 sm:w-5 sm:h-5 hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25a2.25 2.25 0 01-2.25 2.25h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
+            </svg>
+            <svg id="iconViewList" class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+            </svg>
+          </button>
+
+          <!-- Modo claro / oscuro -->
+          <button
+            id="btnToggleTheme"
+            type="button"
+            class="p-2.5 rounded-xl bg-white/90 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 transition cursor-pointer"
+            title="Cambiar tema claro / oscuro"
+            aria-label="Cambiar tema"
+          >
+            <svg id="iconSun" class="w-4 h-4 sm:w-5 sm:h-5 hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
+            </svg>
+            <svg id="iconMoon" class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Barra de búsqueda principal -->
+      <div class="relative flex items-center gap-2">
+        <div class="relative flex-1">
+          <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 sm:pl-4 text-slate-400">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+            </svg>
+          </div>
+          <input
+            id="searchInput"
+            type="search"
+            inputmode="search"
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="Buscá banana, manzana, papa o código..."
+            class="w-full pl-10 sm:pl-11 pr-14 sm:pr-24 py-3 sm:py-3.5 text-base sm:text-lg font-medium rounded-2xl border-2 border-slate-200 dark:border-slate-700 bg-white/95 dark:bg-slate-800/95 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-emerald-500 focus:bg-white dark:focus:bg-slate-800 transition shadow-inner"
+          />
+          <div class="absolute inset-y-0 right-2 flex items-center gap-1.5">
+            <kbd class="hidden sm:inline-flex items-center px-2 py-0.5 text-xs font-semibold text-slate-400 bg-slate-200/70 dark:bg-slate-700/70 rounded-lg">ESC</kbd>
+            <button
+              id="btnClearSearch"
+              type="button"
+              class="hidden p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer"
+              title="Limpiar búsqueda"
+              aria-label="Limpiar búsqueda"
+            >
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Controles compactos: Todos (activar/ocultar) y Favoritos -->
+      <div class="flex flex-wrap items-center justify-between gap-2 pt-2">
+        <div class="flex items-center gap-2">
+          <button
+            id="btnToggleAll"
+            type="button"
+            class="inline-flex items-center gap-1.5 px-3.5 py-2 sm:py-1.5 rounded-xl border text-xs sm:text-sm font-semibold transition cursor-pointer"
+          ></button>
+          <button
+            id="btnToggleFavs"
+            type="button"
+            class="inline-flex items-center gap-1.5 px-3.5 py-2 sm:py-1.5 rounded-xl border text-xs sm:text-sm font-semibold transition cursor-pointer"
+          ></button>
+        </div>
+        <span id="quickModeHint" class="hidden sm:inline text-xs text-slate-500 dark:text-slate-400">
+          Tocá «Todos» para ver o limpiar la pantalla
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Contenido principal -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 py-4 sm:py-5">
+    <!-- Banner de aviso si todavía están cargados los datos de ejemplo -->
+    <div id="demoBanner" class="hidden mb-4 rounded-2xl border border-amber-200 dark:border-amber-800/70 bg-amber-50 dark:bg-amber-950/40 px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div class="flex items-start sm:items-center gap-2.5 text-sm text-amber-900 dark:text-amber-200">
+        <span class="text-lg leading-none">💡</span>
+        <span>
+          <strong>Modo ejemplo activo:</strong> cargá tu archivo Excel (Columna A código, Columna B descripción) o subilo como <code class="font-bold">codigos.xlsx</code> en GitHub.
+        </span>
+      </div>
+      <button
+        id="btnBannerImport"
+        type="button"
+        class="shrink-0 inline-flex items-center justify-center px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs sm:text-sm font-bold shadow-sm transition cursor-pointer"
+      >
+        Subir mi Excel ahora
+      </button>
+    </div>
+
+    <!-- Barra de estado y selector de orden -->
+    <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+      <p id="resultsStatus" class="text-xs sm:text-sm font-medium text-slate-500 dark:text-slate-400">
+        Interfaz limpia · Escribí un producto o código para buscar
+      </p>
+      <div id="sortWrapper" class="hidden items-center gap-2">
+        <label for="sortSelect" class="text-xs text-slate-500 dark:text-slate-400">Ordenar:</label>
+        <select
+          id="sortSelect"
+          class="text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 px-2.5 py-1.5 focus:outline-none focus:border-emerald-500"
+        >
+          <option value="fav_az">Favoritos primero (A-Z)</option>
+          <option value="az">Nombre (A-Z)</option>
+          <option value="code_asc">Código (menor a mayor)</option>
+          <option value="code_desc">Código (mayor a menor)</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Filtro rápido alfabético -->
+    <div id="alphabetBar" class="flex flex-wrap items-center gap-1 mb-4"></div>
+
+    <!-- Estado inicial limpio (cuando no hay búsqueda ni filtro activo) -->
+    <section id="cleanState" class="hidden py-10 sm:py-16 text-center">
+      <div class="mx-auto max-w-md rounded-3xl border border-dashed border-slate-300 dark:border-slate-700 bg-white/70 dark:bg-slate-900/50 p-7 sm:p-9">
+        <div class="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-lime-100 dark:bg-emerald-900/50 text-2xl">
+          🥬
+        </div>
+        <h2 class="text-base sm:text-lg font-extrabold text-slate-800 dark:text-slate-100">
+          Pantalla lista para caja
+        </h2>
+        <p class="mt-1.5 text-xs sm:text-sm text-slate-500 dark:text-slate-400">
+          Escribí el nombre o código arriba para consultar al instante, o tocá <strong>Todos</strong> para ver la lista completa.
+        </p>
+      </div>
+    </section>
+
+    <!-- Estado vacío cuando una búsqueda no encuentra resultados -->
+    <section id="emptyState" class="hidden py-12 text-center">
+      <div class="mx-auto max-w-md rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-7 shadow-sm">
+        <div class="text-4xl mb-2">🔍</div>
+        <h2 class="text-base sm:text-lg font-bold text-slate-800 dark:text-slate-100">
+          No encontramos ese producto
+        </h2>
+        <p class="mt-1 text-xs sm:text-sm text-slate-500 dark:text-slate-400">
+          Probá con otra palabra o limpiá el buscador para volver a empezar.
+        </p>
+        <button
+          id="btnResetFilters"
+          type="button"
+          class="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold transition cursor-pointer"
+        >
+          Limpiar búsqueda
+        </button>
+      </div>
+    </section>
+
+    <!-- Contenedor de resultados (Tarjetas o Lista) -->
+    <section id="productsContainer"></section>
+  </main>
+
+  <!-- Modal para agregar / editar un producto manualmente -->
+  <div id="productModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/60 backdrop-blur-xs p-4">
+    <div class="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden">
+      <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-800">
+        <h3 id="productModalTitle" class="text-lg font-extrabold text-slate-900 dark:text-white">Nuevo producto</h3>
+        <button id="btnCloseProductModal" type="button" class="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <form id="productForm" class="p-5 space-y-4">
+        <input id="inputProductId" type="hidden" />
+        <div>
+          <label for="inputProductCode" class="block text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-1.5">
+            Código interno (Columna A) *
+          </label>
+          <input
+            id="inputProductCode"
+            type="text"
+            required
+            placeholder="Ej: 37"
+            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-bold text-base focus:outline-none focus:border-emerald-500"
+          />
+        </div>
+        <div>
+          <label for="inputProductName" class="block text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-1.5">
+            Descripción del producto (Columna B) *
+          </label>
+          <input
+            id="inputProductName"
+            type="text"
+            required
+            placeholder="Ej: BANANA ECUADOR KG"
+            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-medium text-base focus:outline-none focus:border-emerald-500"
+          />
+        </div>
+        <label class="flex items-center gap-2.5 pt-1 cursor-pointer select-none">
+          <input id="inputProductFav" type="checkbox" class="h-4 w-4 rounded accent-amber-500" />
+          <span class="text-sm font-medium text-slate-700 dark:text-slate-200">Marcar como favorito ★</span>
+        </label>
+        <div class="flex items-center justify-end gap-2 pt-2">
+          <button
+            id="btnCancelProduct"
+            type="button"
+            class="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-sm font-semibold cursor-pointer"
+          >
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold shadow-sm cursor-pointer"
+          >
+            Guardar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal de confirmación para eliminar (reemplaza confirm() nativo) -->
+  <div id="deleteModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/60 backdrop-blur-xs p-4">
+    <div class="w-full max-w-sm rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 shadow-2xl">
+      <h3 class="text-base font-extrabold text-slate-900 dark:text-white">¿Eliminar producto?</h3>
+      <p id="deleteModalText" class="mt-1.5 text-sm text-slate-600 dark:text-slate-300"></p>
+      <div class="mt-5 flex items-center justify-end gap-2">
+        <button id="btnCancelDelete" type="button" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-sm font-semibold cursor-pointer">
+          Cancelar
+        </button>
+        <button id="btnConfirmDelete" type="button" class="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-sm font-bold cursor-pointer">
+          Eliminar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notificación flotante (Toast) -->
+  <div id="toast" class="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 pointer-events-none opacity-0 translate-y-3 transition-all duration-200">
+    <div id="toastInner" class="px-4 py-2.5 rounded-2xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-sm font-semibold shadow-xl flex items-center gap-2 whitespace-nowrap">
+      <span id="toastMessage"></span>
+    </div>
+  </div>
+
+  <script>
+    // =========================================================================
+    // CONFIGURACIÓN DE SINCRONIZACIÓN EN LA NUBE (GITHUB PAGES)
+    // Subí tu archivo "codigos.xlsx" en la misma carpeta de GitHub que este
+    // archivo (renombrado a index.html) para que se actualice en todos lados.
+    // =========================================================================
+    const CLOUD_CONFIG = {
+      EXCEL_URL: './codigos.xlsx',
+      AUTO_SYNC_ON_LOAD: true,
+    };
+
+    const STORAGE_KEYS = {
+      ITEMS: 'loreal_verduleria_items_v2',
+      IS_DEMO: 'loreal_verduleria_is_demo_v2',
+      THEME: 'loreal_verduleria_theme_v2',
+      VIEW: 'loreal_verduleria_view_v2',
+      LAST_SYNC: 'loreal_verduleria_last_sync_v2',
+    };
+
+    // Productos de ejemplo para probar la app antes de subir el Excel real
+    const DEMO_ITEMS = [
+      { id: 'd1', code: '10', name: 'BANANA ECUADOR KG', favorite: true },
+      { id: 'd2', code: '11', name: 'MANZANA ROJA KG', favorite: true },
+      { id: 'd3', code: '12', name: 'MANZANA VERDE KG', favorite: false },
+      { id: 'd4', code: '15', name: 'NARANJA JUGO KG', favorite: false },
+      { id: 'd5', code: '18', name: 'LIMON KG', favorite: true },
+      { id: 'd6', code: '20', name: 'PAPA NEGRA KG', favorite: true },
+      { id: 'd7', code: '21', name: 'CEBOLLA KG', favorite: false },
+      { id: 'd8', code: '25', name: 'TOMATE REDONDO KG', favorite: true },
+      { id: 'd9', code: '26', name: 'TOMATE PERITA KG', favorite: false },
+      { id: 'd10', code: '30', name: 'ZANAHORIA KG', favorite: false },
+      { id: 'd11', code: '37', name: 'ACELGA KG', favorite: false },
+      { id: 'd12', code: '42', name: 'PALTA HASS KG', favorite: false },
+    ];
+
+    // Estado global de la aplicación
+    const state = {
+      items: [],
+      isDemo: true,
+      searchQuery: '',
+      viewFilter: 'NONE', // 'NONE' (interfaz limpia) | 'ALL' | 'FAVS'
+      activeLetter: 'ALL',
+      sortBy: 'fav_az',
+      viewMode: 'grid', // 'grid' | 'list'
+      darkMode: false,
+      pendingDeleteId: null,
+    };
+
+    // Referencias al DOM
+    const el = {
+      excelFileInput: document.getElementById('excelFileInput'),
+      globalDropOverlay: document.getElementById('globalDropOverlay'),
+      totalCountBadge: document.getElementById('totalCountBadge'),
+      btnSyncCloud: document.getElementById('btnSyncCloud'),
+      iconSync: document.getElementById('iconSync'),
+      btnOpenImport: document.getElementById('btnOpenImport'),
+      btnBannerImport: document.getElementById('btnBannerImport'),
+      btnAddProduct: document.getElementById('btnAddProduct'),
+      btnExportExcel: document.getElementById('btnExportExcel'),
+      btnToggleView: document.getElementById('btnToggleView'),
+      iconViewGrid: document.getElementById('iconViewGrid'),
+      iconViewList: document.getElementById('iconViewList'),
+      btnToggleTheme: document.getElementById('btnToggleTheme'),
+      iconSun: document.getElementById('iconSun'),
+      iconMoon: document.getElementById('iconMoon'),
+      searchInput: document.getElementById('searchInput'),
+      btnClearSearch: document.getElementById('btnClearSearch'),
+      btnToggleAll: document.getElementById('btnToggleAll'),
+      btnToggleFavs: document.getElementById('btnToggleFavs'),
+      quickModeHint: document.getElementById('quickModeHint'),
+      demoBanner: document.getElementById('demoBanner'),
+      resultsStatus: document.getElementById('resultsStatus'),
+      sortWrapper: document.getElementById('sortWrapper'),
+      sortSelect: document.getElementById('sortSelect'),
+      alphabetBar: document.getElementById('alphabetBar'),
+      cleanState: document.getElementById('cleanState'),
+      emptyState: document.getElementById('emptyState'),
+      btnResetFilters: document.getElementById('btnResetFilters'),
+      productsContainer: document.getElementById('productsContainer'),
+      productModal: document.getElementById('productModal'),
+      productModalTitle: document.getElementById('productModalTitle'),
+      btnCloseProductModal: document.getElementById('btnCloseProductModal'),
+      btnCancelProduct: document.getElementById('btnCancelProduct'),
+      productForm: document.getElementById('productForm'),
+      inputProductId: document.getElementById('inputProductId'),
+      inputProductCode: document.getElementById('inputProductCode'),
+      inputProductName: document.getElementById('inputProductName'),
+      inputProductFav: document.getElementById('inputProductFav'),
+      deleteModal: document.getElementById('deleteModal'),
+      deleteModalText: document.getElementById('deleteModalText'),
+      btnCancelDelete: document.getElementById('btnCancelDelete'),
+      btnConfirmDelete: document.getElementById('btnConfirmDelete'),
+      toast: document.getElementById('toast'),
+      toastInner: document.getElementById('toastInner'),
+      toastMessage: document.getElementById('toastMessage'),
+    };
+
+    let toastTimer = null;
+
+    // =========================================================================
+    // UTILIDADES
+    // =========================================================================
+
+    function generateId() {
+      return 'p_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 7);
+    }
+
+    /** Normaliza texto eliminando tildes y mayúsculas para búsqueda rápida en caja */
+    function normalizeText(str) {
+      return String(str || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
+    }
+
+    function escapeHtml(str) {
+      return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    /** Asigna un emoji representativo según el nombre del producto */
+    function getProductEmoji(name) {
+      const n = normalizeText(name);
+      if (n.includes('banana')) return '🍌';
+      if (n.includes('manzana verde')) return '🍏';
+      if (n.includes('manzana')) return '🍎';
+      if (n.includes('naranja') || n.includes('mandarina') || n.includes('pomelo')) return '🍊';
+      if (n.includes('limon') || n.includes('lima')) return '🍋';
+      if (n.includes('pera')) return '🍐';
+      if (n.includes('uva')) return '🍇';
+      if (n.includes('frutilla') || n.includes('fresa')) return '🍓';
+      if (n.includes('sandia')) return '🍉';
+      if (n.includes('melon')) return '🍈';
+      if (n.includes('durazno') || n.includes('pelon') || n.includes('damasco')) return '🍑';
+      if (n.includes('anana') || n.includes('pina')) return '🍍';
+      if (n.includes('mango')) return '🥭';
+      if (n.includes('kiwi')) return '🥝';
+      if (n.includes('cereza') || n.includes('guinda')) return '🍒';
+      if (n.includes('coco')) return '🥥';
+      if (n.includes('palta') || n.includes('aguacate')) return '🥑';
+      if (n.includes('tomate')) return '🍅';
+      if (n.includes('papa') || n.includes('batata') || n.includes('boniato')) return '🥔';
+      if (n.includes('zanahoria')) return '🥕';
+      if (n.includes('cebolla') || n.includes('puerro') || n.includes('verdeo')) return '🧅';
+      if (n.includes('ajo')) return '🧄';
+      if (n.includes('choclo') || n.includes('maiz')) return '🌽';
+      if (n.includes('brocoli') || n.includes('coliflor')) return '🥦';
+      if (n.includes('pepino') || n.includes('zapallito') || n.includes('zucchini')) return '🥒';
+      if (n.includes('berenjena')) return '🍆';
+      if (n.includes('morron') || n.includes('pimiento') || n.includes('aji')) return '🫑';
+      if (n.includes('lechuga') || n.includes('acelga') || n.includes('espinaca') || n.includes('rucula') || n.includes('repollo') || n.includes('albahaca') || n.includes('perejil') || n.includes('apio')) return '🥬';
+      if (n.includes('zapallo') || n.includes('calabaza') || n.includes('anco')) return '🎃';
+      if (n.includes('hongo') || n.includes('champinon')) return '🍄';
+      if (n.includes('huevo')) return '🥚';
+      return '🥗';
+    }
+
+    /** Copia texto al portapapeles compatible con iframes y celulares */
+    function copyToClipboard(text) {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.setAttribute('readonly', '');
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      textarea.setSelectionRange(0, 99999);
+      let ok = false;
+      try {
+        ok = document.execCommand('copy');
+      } catch (_) {
+        ok = false;
+      }
+      document.body.removeChild(textarea);
+      return ok;
+    }
+
+    /** Muestra un mensaje flotante temporal */
+    function showToast(message, type = 'default') {
+      el.toastMessage.textContent = message;
+      el.toastInner.className = 'px-4 py-2.5 rounded-2xl text-sm font-semibold shadow-xl flex items-center gap-2 whitespace-nowrap ';
+      if (type === 'success') {
+        el.toastInner.className += 'bg-emerald-600 text-white';
+      } else if (type === 'error') {
+        el.toastInner.className += 'bg-rose-600 text-white';
+      } else {
+        el.toastInner.className += 'bg-slate-900 dark:bg-white text-white dark:text-slate-900';
+      }
+      el.toast.classList.remove('opacity-0', 'translate-y-3');
+      el.toast.classList.add('opacity-100', 'translate-y-0');
+
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        el.toast.classList.add('opacity-0', 'translate-y-3');
+        el.toast.classList.remove('opacity-100', 'translate-y-0');
+      }, 2400);
+    }
+
+    // =========================================================================
+    // ALMACENAMIENTO LOCAL Y TEMA
+    // =========================================================================
+
+    function loadFromStorage() {
+      try {
+        const savedItems = localStorage.getItem(STORAGE_KEYS.ITEMS);
+        const savedDemo = localStorage.getItem(STORAGE_KEYS.IS_DEMO);
+        const savedTheme = localStorage.getItem(STORAGE_KEYS.THEME);
+        const savedView = localStorage.getItem(STORAGE_KEYS.VIEW);
+
+        if (savedItems) {
+          const parsed = JSON.parse(savedItems);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            state.items = parsed;
+            state.isDemo = savedDemo === 'true';
+          } else {
+            state.items = [...DEMO_ITEMS];
+            state.isDemo = true;
+          }
+        } else {
+          state.items = [...DEMO_ITEMS];
+          state.isDemo = true;
+        }
+
+        state.darkMode = savedTheme === 'dark';
+        state.viewMode = savedView === 'list' ? 'list' : 'grid';
+      } catch (_) {
+        state.items = [...DEMO_ITEMS];
+        state.isDemo = true;
+      }
+      applyTheme();
+    }
+
+    function saveToStorage() {
+      try {
+        localStorage.setItem(STORAGE_KEYS.ITEMS, JSON.stringify(state.items));
+        localStorage.setItem(STORAGE_KEYS.IS_DEMO, String(state.isDemo));
+        localStorage.setItem(STORAGE_KEYS.THEME, state.darkMode ? 'dark' : 'light');
+        localStorage.setItem(STORAGE_KEYS.VIEW, state.viewMode);
+      } catch (_) {
+        // Ignorar si el navegador bloquea localStorage
+      }
+    }
+
+    function applyTheme() {
+      document.documentElement.classList.toggle('dark', state.darkMode);
+      el.iconSun.classList.toggle('hidden', !state.darkMode);
+      el.iconMoon.classList.toggle('hidden', state.darkMode);
+    }
+
+    function applyViewIcons() {
+      el.iconViewGrid.classList.toggle('hidden', state.viewMode === 'grid');
+      el.iconViewList.classList.toggle('hidden', state.viewMode === 'list');
+    }
+
+    // =========================================================================
+    // FILTRADO Y ORDENAMIENTO
+    // =========================================================================
+
+    function shouldDisplayList() {
+      return (
+        state.searchQuery.trim() !== '' ||
+        state.viewFilter === 'ALL' ||
+        state.viewFilter === 'FAVS' ||
+        state.activeLetter !== 'ALL'
+      );
+    }
+
+    function getFilteredItems() {
+      if (!shouldDisplayList()) return [];
+
+      const query = normalizeText(state.searchQuery);
+      const tokens = query ? query.split(/\s+/).filter(Boolean) : [];
+
+      let result = state.items.filter((item) => {
+        if (state.viewFilter === 'FAVS' && !item.favorite) return false;
+
+        if (state.activeLetter !== 'ALL') {
+          const firstChar = normalizeText(item.name).charAt(0).toUpperCase();
+          if (firstChar !== state.activeLetter) return false;
+        }
+
+        if (tokens.length > 0) {
+          const haystack = `${normalizeText(item.name)} ${normalizeText(item.code)}`;
+          return tokens.every((t) => haystack.includes(t));
+        }
+
+        return true;
+      });
+
+      result.sort((a, b) => {
+        if (state.sortBy === 'fav_az') {
+          if (a.favorite !== b.favorite) return a.favorite ? -1 : 1;
+          return a.name.localeCompare(b.name, 'es');
+        }
+        if (state.sortBy === 'az') {
+          return a.name.localeCompare(b.name, 'es');
+        }
+        const numA = parseFloat(a.code);
+        const numB = parseFloat(b.code);
+        const bothNum = !isNaN(numA) && !isNaN(numB);
+        if (state.sortBy === 'code_asc') {
+          return bothNum ? numA - numB : String(a.code).localeCompare(String(b.code), 'es');
+        }
+        if (state.sortBy === 'code_desc') {
+          return bothNum ? numB - numA : String(b.code).localeCompare(String(a.code), 'es');
+        }
+        return 0;
+      });
+
+      return result;
+    }
+
+    // =========================================================================
+    // RENDERIZADO DE INTERFAZ
+    // =========================================================================
+
+    function renderQuickModeButtons() {
+      const total = state.items.length;
+      const favCount = state.items.filter((i) => i.favorite).length;
+
+      const allActive = state.viewFilter === 'ALL';
+      const favActive = state.viewFilter === 'FAVS';
+
+      el.btnToggleAll.textContent = allActive ? `Todos (${total}) · Ocultar` : `Todos (${total})`;
+      el.btnToggleAll.className =
+        'inline-flex items-center gap-1.5 px-3.5 py-2 sm:py-1.5 rounded-xl border text-xs sm:text-sm font-semibold transition cursor-pointer ' +
+        (allActive
+          ? 'bg-emerald-600 border-emerald-600 text-white shadow-sm'
+          : 'bg-white/90 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:border-emerald-400');
+
+      el.btnToggleFavs.textContent = `★ Favoritos (${favCount})`;
+      el.btnToggleFavs.className =
+        'inline-flex items-center gap-1.5 px-3.5 py-2 sm:py-1.5 rounded-xl border text-xs sm:text-sm font-semibold transition cursor-pointer ' +
+        (favActive
+          ? 'bg-amber-500 border-amber-500 text-white shadow-sm'
+          : 'bg-white/90 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:border-amber-400');
+    }
+
+    function renderAlphabetBar() {
+      const letters = new Set();
+      state.items.forEach((item) => {
+        const ch = normalizeText(item.name).charAt(0).toUpperCase();
+        if (ch >= 'A' && ch <= 'Z') letters.add(ch);
+      });
+
+      const sortedLetters = Array.from(letters).sort();
+      if (sortedLetters.length === 0) {
+        el.alphabetBar.innerHTML = '';
+        return;
+      }
+
+      el.alphabetBar.innerHTML = sortedLetters
+        .map((letter) => {
+          const isActive = state.activeLetter === letter;
+          const cls = isActive
+            ? 'bg-slate-900 dark:bg-emerald-500 text-white border-slate-900 dark:border-emerald-500 shadow-sm'
+            : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-emerald-400';
+          return `<button type="button" data-letter="${letter}" class="w-8 h-8 sm:w-8 sm:h-8 rounded-lg border text-xs font-bold transition cursor-pointer ${cls}">${letter}</button>`;
+        })
+        .join('');
+    }
+
+    function renderProducts() {
+      const showList = shouldDisplayList();
+      el.btnClearSearch.classList.toggle('hidden', state.searchQuery === '');
+
+      if (!showList) {
+        el.cleanState.classList.remove('hidden');
+        el.emptyState.classList.add('hidden');
+        el.productsContainer.innerHTML = '';
+        el.sortWrapper.classList.add('hidden');
+        el.sortWrapper.classList.remove('flex');
+        el.resultsStatus.textContent = 'Interfaz limpia · Buscá arriba o tocá «Todos»';
+        return;
+      }
+
+      el.cleanState.classList.add('hidden');
+      const items = getFilteredItems();
+
+      if (items.length === 0) {
+        el.emptyState.classList.remove('hidden');
+        el.productsContainer.innerHTML = '';
+        el.sortWrapper.classList.add('hidden');
+        el.sortWrapper.classList.remove('flex');
+        el.resultsStatus.textContent = 'Sin coincidencias';
+        return;
+      }
+
+      el.emptyState.classList.add('hidden');
+      el.sortWrapper.classList.remove('hidden');
+      el.sortWrapper.classList.add('flex');
+      el.resultsStatus.textContent = `Mostrando ${items.length} ${items.length === 1 ? 'producto' : 'productos'} · Tocá una tarjeta para copiar el código`;
+
+      if (state.viewMode === 'list') {
+        el.productsContainer.className = 'space-y-2';
+        el.productsContainer.innerHTML = items
+          .map((item) => {
+            const emoji = getProductEmoji(item.name);
+            const starColor = item.favorite
+              ? 'text-amber-400'
+              : 'text-slate-300 dark:text-slate-600 hover:text-amber-400';
+            return `
+              <div data-copy-code="${escapeHtml(item.code)}" data-copy-name="${escapeHtml(item.name)}" class="group flex items-center justify-between gap-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3.5 py-2.5 shadow-xs hover:border-emerald-400 dark:hover:border-emerald-500 active:scale-[0.995] transition cursor-pointer">
+                <div class="flex items-center gap-3 min-w-0">
+                  <span class="text-xl shrink-0">${emoji}</span>
+                  <span class="font-bold text-sm sm:text-base text-slate-900 dark:text-white truncate">${escapeHtml(item.name)}</span>
+                </div>
+                <div class="flex items-center gap-2 sm:gap-3 shrink-0">
+                  <span class="px-3 py-1 rounded-xl bg-emerald-50 dark:bg-emerald-950/70 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 font-black text-lg sm:text-xl tabular-nums">
+                    ${escapeHtml(item.code)}
+                  </span>
+                  <button type="button" data-action="fav" data-id="${item.id}" class="p-1.5 rounded-lg transition cursor-pointer ${starColor}" title="Favorito" aria-label="Marcar favorito">
+                    <svg class="w-5 h-5" fill="${item.favorite ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
+                    </svg>
+                  </button>
+                  <button type="button" data-action="edit" data-id="${item.id}" class="hidden sm:inline-flex p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer" title="Editar">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
+                    </svg>
+                  </button>
+                  <button type="button" data-action="delete" data-id="${item.id}" class="hidden sm:inline-flex p-1.5 rounded-lg text-slate-400 hover:text-rose-600 cursor-pointer" title="Eliminar">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            `;
+          })
+          .join('');
+      } else {
+        el.productsContainer.className = 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3.5';
+        el.productsContainer.innerHTML = items
+          .map((item) => {
+            const emoji = getProductEmoji(item.name);
+            const starColor = item.favorite
+              ? 'text-amber-400'
+              : 'text-slate-300 dark:text-slate-600 hover:text-amber-400';
+            return `
+              <article data-copy-code="${escapeHtml(item.code)}" data-copy-name="${escapeHtml(item.name)}" class="group flex flex-col justify-between rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3.5 sm:p-4 shadow-xs hover:shadow-md hover:border-emerald-400 dark:hover:border-emerald-500 active:scale-[0.98] transition cursor-pointer">
+                <div class="flex items-start justify-between gap-2">
+                  <div class="flex items-start gap-2 min-w-0">
+                    <span class="text-xl sm:text-2xl leading-none shrink-0 mt-0.5">${emoji}</span>
+                    <h3 class="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white leading-snug break-words">
+                      ${escapeHtml(item.name)}
+                    </h3>
+                  </div>
+                  <button type="button" data-action="fav" data-id="${item.id}" class="p-1 -mr-1 -mt-1 rounded-lg transition cursor-pointer shrink-0 ${starColor}" title="Favorito" aria-label="Marcar favorito">
+                    <svg class="w-5 h-5" fill="${item.favorite ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
+                    </svg>
+                  </button>
+                </div>
+
+                <div class="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-end justify-between gap-2">
+                  <div>
+                    <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-400">Cód. caja</span>
+                    <span class="text-2xl sm:text-3xl font-black text-emerald-600 dark:text-emerald-400 leading-none tabular-nums">
+                      ${escapeHtml(item.code)}
+                    </span>
+                  </div>
+                  <div class="flex items-center gap-0.5">
+                    <button type="button" data-action="edit" data-id="${item.id}" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer" title="Editar">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
+                      </svg>
+                    </button>
+                    <button type="button" data-action="delete" data-id="${item.id}" class="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 cursor-pointer" title="Eliminar">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </article>
+            `;
+          })
+          .join('');
+      }
+    }
+
+    function renderAll() {
+      el.totalCountBadge.textContent = `${state.items.length} ${state.items.length === 1 ? 'producto' : 'productos'}`;
+      el.demoBanner.classList.toggle('hidden', !state.isDemo);
+      renderQuickModeButtons();
+      renderAlphabetBar();
+      renderProducts();
+    }
+
+    // =========================================================================
+    // IMPORTADOR DIRECTO DE EXCEL (COLUMNA A = CÓDIGO, COLUMNA B = DESCRIPCIÓN)
+    // Y SINCRONIZACIÓN AUTOMÁTICA DESDE LA NUBE (GITHUB PAGES)
+    // =========================================================================
+
+    function triggerExcelPicker() {
+      el.excelFileInput.value = '';
+      el.excelFileInput.click();
+    }
+
+    function parseAndLoadWorkbook(arrayBuffer, sourceLabel, silent = false) {
+      if (typeof XLSX === 'undefined') {
+        if (!silent) showToast('No se pudo cargar el lector de Excel. Verificá tu conexión.', 'error');
+        return false;
+      }
+
+      const data = new Uint8Array(arrayBuffer);
+      const workbook = XLSX.read(data, { type: 'array' });
+      const firstSheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[firstSheetName];
+      const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+
+      const validRows = rows.filter(
+        (row) => Array.isArray(row) && row.some((cell) => String(cell ?? '').trim() !== '')
+      );
+
+      if (validRows.length === 0) {
+        if (!silent) showToast('El archivo Excel está vacío.', 'error');
+        return false;
+      }
+
+      // Si A1 es un número (ej: 37), ya es producto; si es texto (ej: "Cód. Artículo"), se omite
+      const firstCell = String(validRows[0][0] ?? '').trim();
+      const isFirstRowNumeric = firstCell !== '' && /^\d+([.,-]\d+)?$/.test(firstCell);
+      const startRow = isFirstRowNumeric ? 0 : 1;
+
+      // Conservar favoritos existentes por código
+      const prevFavorites = new Set(
+        state.items.filter((i) => i.favorite).map((i) => normalizeText(i.code))
+      );
+
+      const parsed = [];
+      for (let i = startRow; i < validRows.length; i++) {
+        const row = validRows[i];
+        const code = String(row[0] ?? '').trim(); // Columna A
+        const name = String(row[1] ?? '').trim(); // Columna B
+
+        if (!code || !name) continue;
+
+        parsed.push({
+          id: generateId() + '_' + i,
+          code,
+          name,
+          favorite: prevFavorites.has(normalizeText(code)),
+        });
+      }
+
+      if (parsed.length === 0) {
+        if (!silent) showToast('No se encontraron códigos válidos en las columnas A y B.', 'error');
+        return false;
+      }
+
+      state.items = parsed;
+      state.isDemo = false;
+
+      if (!silent) {
+        state.viewFilter = 'NONE';
+        state.activeLetter = 'ALL';
+        state.searchQuery = '';
+        el.searchInput.value = '';
+      }
+
+      saveToStorage();
+      renderAll();
+
+      if (!silent) {
+        showToast(`¡Listo! ${parsed.length} códigos cargados (${sourceLabel}).`, 'success');
+      }
+      return true;
+    }
+
+    function handleExcelFile(file) {
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const ok = parseAndLoadWorkbook(e.target.result, file.name, false);
+          el.excelFileInput.value = '';
+          if (ok && window.innerWidth >= 768) {
+            el.searchInput.focus();
+          }
+        } catch (_) {
+          showToast('Error al leer el archivo. Asegurate de que sea un Excel o CSV válido.', 'error');
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    async function syncFromCloud(isManual = false) {
+      if (!CLOUD_CONFIG.EXCEL_URL) return;
+      const isWeb = window.location.protocol === 'http:' || window.location.protocol === 'https:';
+
+      if (!isWeb && CLOUD_CONFIG.EXCEL_URL.startsWith('./')) {
+        if (isManual) {
+          showToast('Subí index.html y codigos.xlsx a GitHub Pages para sincronizar.', 'default');
+        }
+        return;
+      }
+
+      el.iconSync.classList.add('animate-spin');
+      try {
+        const sep = CLOUD_CONFIG.EXCEL_URL.includes('?') ? '&' : '?';
+        const url = `${CLOUD_CONFIG.EXCEL_URL}${sep}t=${Date.now()}`;
+        const response = await fetch(url, { cache: 'no-store' });
+
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        const buffer = await response.arrayBuffer();
+        const loaded = parseAndLoadWorkbook(buffer, 'Nube', !isManual);
+        if (loaded) {
+          try {
+            localStorage.setItem(STORAGE_KEYS.LAST_SYNC, new Date().toISOString());
+          } catch (_) {}
+          if (!isManual) {
+            showToast(`Lista actualizada (${state.items.length} códigos)`, 'success');
+          }
+        }
+      } catch (_) {
+        if (isManual) {
+          showToast('No se encontró codigos.xlsx en la nube. Usando copia guardada.', 'error');
+        }
+      } finally {
+        el.iconSync.classList.remove('animate-spin');
+      }
+    }
+
+    function exportToExcel() {
+      if (typeof XLSX === 'undefined') {
+        showToast('No se pudo exportar en este momento.', 'error');
+        return;
+      }
+      const rows = [['Cód. Artículo', 'Descripción']];
+      state.items.forEach((item) => rows.push([item.code, item.name]));
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Códigos');
+      XLSX.writeFile(wb, 'codigos.xlsx');
+      showToast('Descargando codigos.xlsx...', 'success');
+    }
+
+    // =========================================================================
+    // MODALES DE ALTA / EDICIÓN / ELIMINACIÓN MANUAL
+    // =========================================================================
+
+    function openProductModal(item = null) {
+      if (item) {
+        el.productModalTitle.textContent = 'Editar producto';
+        el.inputProductId.value = item.id;
+        el.inputProductCode.value = item.code;
+        el.inputProductName.value = item.name;
+        el.inputProductFav.checked = Boolean(item.favorite);
+      } else {
+        el.productModalTitle.textContent = 'Nuevo producto';
+        el.inputProductId.value = '';
+        el.inputProductCode.value = '';
+        el.inputProductName.value = '';
+        el.inputProductFav.checked = false;
+      }
+      el.productModal.classList.remove('hidden');
+      el.productModal.classList.add('flex');
+      el.inputProductCode.focus();
+    }
+
+    function closeProductModal() {
+      el.productModal.classList.add('hidden');
+      el.productModal.classList.remove('flex');
+    }
+
+    function openDeleteModal(item) {
+      state.pendingDeleteId = item.id;
+      el.deleteModalText.textContent = `Vas a quitar "${item.name}" (Cód. ${item.code}) de esta pantalla.`;
+      el.deleteModal.classList.remove('hidden');
+      el.deleteModal.classList.add('flex');
+    }
+
+    function closeDeleteModal() {
+      state.pendingDeleteId = null;
+      el.deleteModal.classList.add('hidden');
+      el.deleteModal.classList.remove('flex');
+    }
+
+    // =========================================================================
+    // EVENTOS
+    // =========================================================================
+
+    function bindEvents() {
+      // Búsqueda en vivo
+      el.searchInput.addEventListener('input', (e) => {
+        state.searchQuery = e.target.value;
+        renderProducts();
+      });
+
+      el.btnClearSearch.addEventListener('click', () => {
+        state.searchQuery = '';
+        el.searchInput.value = '';
+        renderProducts();
+        el.searchInput.focus();
+      });
+
+      // ESC limpia búsqueda y cierra modales
+      window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          if (!el.productModal.classList.contains('hidden')) {
+            closeProductModal();
+            return;
+          }
+          if (!el.deleteModal.classList.contains('hidden')) {
+            closeDeleteModal();
+            return;
+          }
+          state.searchQuery = '';
+          el.searchInput.value = '';
+          renderProducts();
+          el.searchInput.focus();
+        }
+      });
+
+      // Botón Todos (toggle: muestra todos / oculta para interfaz limpia)
+      el.btnToggleAll.addEventListener('click', () => {
+        state.viewFilter = state.viewFilter === 'ALL' ? 'NONE' : 'ALL';
+        state.activeLetter = 'ALL';
+        renderAll();
+      });
+
+      // Botón Favoritos (toggle)
+      el.btnToggleFavs.addEventListener('click', () => {
+        state.viewFilter = state.viewFilter === 'FAVS' ? 'NONE' : 'FAVS';
+        state.activeLetter = 'ALL';
+        renderAll();
+      });
+
+      // Barra alfabética (toggle por letra)
+      el.alphabetBar.addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-letter]');
+        if (!btn) return;
+        const letter = btn.dataset.letter;
+        state.activeLetter = state.activeLetter === letter ? 'ALL' : letter;
+        renderAll();
+      });
+
+      // Ordenar
+      el.sortSelect.addEventListener('change', (e) => {
+        state.sortBy = e.target.value;
+        renderProducts();
+      });
+
+      // Reset desde estado vacío
+      el.btnResetFilters.addEventListener('click', () => {
+        state.searchQuery = '';
+        state.activeLetter = 'ALL';
+        state.viewFilter = 'NONE';
+        el.searchInput.value = '';
+        renderAll();
+        el.searchInput.focus();
+      });
+
+      // Acciones en tarjetas / filas (copiar código, favorito, editar, eliminar)
+      el.productsContainer.addEventListener('click', (e) => {
+        const actionBtn = e.target.closest('button[data-action]');
+        if (actionBtn) {
+          e.stopPropagation();
+          const { action, id } = actionBtn.dataset;
+          const item = state.items.find((i) => i.id === id);
+          if (!item) return;
+
+          if (action === 'fav') {
+            item.favorite = !item.favorite;
+            saveToStorage();
+            renderAll();
+            showToast(item.favorite ? `★ ${item.name} en favoritos` : `Quitado de favoritos`, 'default');
+          } else if (action === 'edit') {
+            openProductModal(item);
+          } else if (action === 'delete') {
+            openDeleteModal(item);
+          }
+          return;
+        }
+
+        const card = e.target.closest('[data-copy-code]');
+        if (card) {
+          const code = card.dataset.copyCode;
+          const name = card.dataset.copyName;
+          copyToClipboard(code);
+          showToast(`Código ${code} copiado (${name})`, 'success');
+        }
+      });
+
+      // Botones del encabezado
+      el.btnSyncCloud.addEventListener('click', () => syncFromCloud(true));
+      el.btnOpenImport.addEventListener('click', triggerExcelPicker);
+      el.btnBannerImport.addEventListener('click', triggerExcelPicker);
+      el.btnAddProduct.addEventListener('click', () => openProductModal(null));
+      el.btnExportExcel.addEventListener('click', exportToExcel);
+
+      el.btnToggleView.addEventListener('click', () => {
+        state.viewMode = state.viewMode === 'grid' ? 'list' : 'grid';
+        applyViewIcons();
+        saveToStorage();
+        renderProducts();
+      });
+
+      el.btnToggleTheme.addEventListener('click', () => {
+        state.darkMode = !state.darkMode;
+        applyTheme();
+        saveToStorage();
+      });
+
+      // Selector de archivo Excel
+      el.excelFileInput.addEventListener('change', (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (file) handleExcelFile(file);
+      });
+
+      // Arrastrar y soltar Excel en cualquier parte de la ventana
+      let dragDepth = 0;
+      window.addEventListener('dragenter', (e) => {
+        if (e.dataTransfer && Array.from(e.dataTransfer.types).includes('Files')) {
+          e.preventDefault();
+          dragDepth++;
+          el.globalDropOverlay.classList.remove('hidden');
+          el.globalDropOverlay.classList.add('flex');
+        }
+      });
+      window.addEventListener('dragover', (e) => {
+        if (e.dataTransfer && Array.from(e.dataTransfer.types).includes('Files')) {
+          e.preventDefault();
+        }
+      });
+      window.addEventListener('dragleave', () => {
+        dragDepth = Math.max(0, dragDepth - 1);
+        if (dragDepth === 0) {
+          el.globalDropOverlay.classList.add('hidden');
+          el.globalDropOverlay.classList.remove('flex');
+        }
+      });
+      window.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dragDepth = 0;
+        el.globalDropOverlay.classList.add('hidden');
+        el.globalDropOverlay.classList.remove('flex');
+        const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+        if (file) handleExcelFile(file);
+      });
+
+      // Modal producto
+      el.btnCloseProductModal.addEventListener('click', closeProductModal);
+      el.btnCancelProduct.addEventListener('click', closeProductModal);
+      el.productForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const id = el.inputProductId.value.trim();
+        const code = el.inputProductCode.value.trim();
+        const name = el.inputProductName.value.trim();
+        const favorite = el.inputProductFav.checked;
+
+        if (!code || !name) return;
+
+        if (id) {
+          const idx = state.items.findIndex((i) => i.id === id);
+          if (idx !== -1) {
+            state.items[idx] = { ...state.items[idx], code, name, favorite };
+          }
+          showToast('Producto actualizado', 'success');
+        } else {
+          state.items.unshift({ id: generateId(), code, name, favorite });
+          state.isDemo = false;
+          showToast('Producto agregado', 'success');
+        }
+
+        saveToStorage();
+        closeProductModal();
+        renderAll();
+      });
+
+      // Modal eliminar
+      el.btnCancelDelete.addEventListener('click', closeDeleteModal);
+      el.btnConfirmDelete.addEventListener('click', () => {
+        if (!state.pendingDeleteId) return;
+        state.items = state.items.filter((i) => i.id !== state.pendingDeleteId);
+        saveToStorage();
+        closeDeleteModal();
+        renderAll();
+        showToast('Producto eliminado', 'default');
+      });
+    }
+
+    // =========================================================================
+    // INICIALIZACIÓN
+    // =========================================================================
+
+    window.addEventListener('DOMContentLoaded', () => {
+      loadFromStorage();
+      applyViewIcons();
+      bindEvents();
+      renderAll();
+
+      // Enfocar buscador solo en PC/tablet (en celulares evita que salte el teclado solo)
+      if (window.innerWidth >= 768) {
+        el.searchInput.focus();
+      }
+
+      // Sincroniza automáticamente con ./codigos.xlsx cuando está publicado en GitHub Pages
+      if (CLOUD_CONFIG.AUTO_SYNC_ON_LOAD) {
+        syncFromCloud(false);
+      }
+    });
+  </script>
+</body>
+</html>
